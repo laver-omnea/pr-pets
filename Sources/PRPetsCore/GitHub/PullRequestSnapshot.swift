@@ -27,6 +27,20 @@ public struct PullRequestSnapshot: Hashable, Codable, Sendable {
         pullRequests.first { $0.id == id }
     }
 
+    /// This snapshot without the pull requests `query` leaves out. Sources already filter what they fetch, so this
+    /// only matters when the query has narrowed since: ignoring a repository sends its pets home at once instead
+    /// of after the next fetch. A wider query still needs a fetch to find anything new.
+    public func narrowed(to query: PullRequestQuery) -> PullRequestSnapshot {
+        let kept = pullRequests.filter { query.includes($0.repository) }
+        guard kept.count < pullRequests.count else { return self }
+        return PullRequestSnapshot(
+            viewer: viewer,
+            fetchedAt: fetchedAt,
+            pullRequests: kept,
+            reviewRequestedOfViewer: reviewRequestedOfViewer.intersection(kept.map(\.id))
+        )
+    }
+
     private static func uniqued(_ pullRequests: [PullRequest]) -> [PullRequest] {
         var seen = Set<PullRequestID>()
         return pullRequests.filter { seen.insert($0.id).inserted }
@@ -51,5 +65,12 @@ public struct PullRequestQuery: Hashable, Codable, Sendable {
         self.owners = owners
         self.excludedRepositories = excludedRepositories
         self.includeStackContext = includeStackContext
+    }
+
+    /// Whether pull requests in `repository` are wanted, matching names the way GitHub does: ignoring case.
+    public func includes(_ repository: RepositoryName) -> Bool {
+        let ownerWanted = owners.isEmpty || owners.contains { $0.caseInsensitiveCompare(repository.owner) == .orderedSame }
+        let ignored = excludedRepositories.contains { $0.caseInsensitiveCompare(repository.nameWithOwner) == .orderedSame }
+        return ownerWanted && !ignored
     }
 }

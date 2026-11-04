@@ -73,6 +73,8 @@ The app's overlay is a transparent, borderless `NSPanel` that spans the width of
 
 Failures become `GitHubSourceError` cases with actionable messages, shown verbatim in the dashboard.
 
+The searches are built from a `PullRequestQuery`. `FilterListKind` reads the filter settings into it, turning links, remotes and stray qualifiers into clean `owner` and `owner/name` entries. GitHub silently ignores a `-repo:` it can't resolve, so a bad entry would otherwise do nothing. The app shows `PullRequestSnapshot.narrowed(to:)` rather than the raw snapshot, so a narrower filter applies at once and a wider one waits for the next fetch. A settings change during a fetch triggers another fetch as soon as the first lands, and the stale result is discarded.
+
 ## Persistence
 
 Three JSON files live in `~/Library/Application Support/PR Pets/`:

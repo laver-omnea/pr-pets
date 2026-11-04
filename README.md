@@ -114,7 +114,8 @@ Open Settings from the doghouse's right-click menu, the menu bar paw, or the das
 
 | Tab | What's there |
 | --- | --- |
-| **GitHub** | How often to check (default every 3 minutes), `gh` path, GitHub Enterprise host, whether team review requests count, only-these-orgs, ignored repositories, whether to fetch whole stacks |
+| **GitHub** | How often to check (default every 3 minutes), `gh` path, GitHub Enterprise host, whether team review requests count, whether to fetch whole stacks |
+| **Filters** | Only these orgs and users, and ignored repositories. One per row: type a name, paste several at once, paste GitHub links, or pick from repositories with open PRs. Ignoring a repository sends its pets home straight away |
 | **Pets** | Which columns get pets (just reviews by default; also your own PRs that need action or are in review), send inside, go home once someone else approves, hover cards, maximum pets, name tag (username, name, repo or none), which species can appear |
 | **Placement** | Scale, roam near the doghouse (and how far) or across the whole screen, hide while an app is full screen or presenting (on by default), reset position |
 | **System** | Menu bar icon, launch at login, automatic update checks, the current version with a Check for Updates button, and Quit |

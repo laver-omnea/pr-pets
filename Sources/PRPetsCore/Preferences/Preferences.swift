@@ -61,7 +61,11 @@ public struct Preferences: Hashable, Codable, Sendable {
     public static let pollIntervalRange: ClosedRange<Double> = 1...60
 
     public var pullRequestQuery: PullRequestQuery {
-        PullRequestQuery(owners: onlyOwners, excludedRepositories: excludedRepositories, includeStackContext: showStackContext)
+        PullRequestQuery(
+            owners: FilterListKind.owners.usable(onlyOwners),
+            excludedRepositories: FilterListKind.repositories.usable(excludedRepositories),
+            includeStackContext: showStackContext
+        )
     }
 
     public var queuePolicy: QueuePolicy {
