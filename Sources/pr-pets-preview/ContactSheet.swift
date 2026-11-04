@@ -22,14 +22,14 @@ enum ContactSheet {
     }
 
     /// Every pose for a handful of pets, one row each.
-    static func renderPoses(seedCount: Int, scale: Int) -> CGImage {
+    static func renderPoses(seedCount: Int, scale: Int, species: [Species] = Species.allCases) -> CGImage {
         let poses = PetPose.allCases
         let cellWidth = (PetSpriteSheet.frameWidth + 2) * scale
         let cellHeight = (PetSpriteSheet.frameHeight + 2) * scale
         let canvas = PreviewCanvas(width: poses.count * cellWidth, height: seedCount * cellHeight, background: 0xf4efe6)
         for row in 0..<seedCount {
-            let genome = GenomeFactory.genome(for: Seed(hashing: "poses-\(row)"))
-            let sheet = PetSpriteComposer.spriteSheet(for: genome)
+            let genome = GenomeFactory.genome(for: Seed(hashing: "poses-\(row)"), allowedSpecies: species)
+            let sheet = PetSpriteComposer.spriteSheet(for: genome, adornment: PetAdornment(wearsStackCollar: row % 3 == 1))
             for (column, pose) in poses.enumerated() {
                 let origin = CGPoint(x: column * cellWidth + scale, y: row * cellHeight + scale)
                 canvas.drawPixels(sheet.frame(for: pose), at: origin, scale: CGFloat(scale))

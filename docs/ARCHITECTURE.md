@@ -56,7 +56,7 @@ Sprites are drawn in two passes:
 
 Patterns therefore never need to know about poses, and new poses get every pattern for free. Tests check that no frame clips at the edge of its canvas and that grounded poses touch the ground row.
 
-To add a species: add a case to `Species`, give it traits in `SpeciesCatalogue`, then add its head, face, ear and tail shapes in `SpeciesAnatomy`. Run `make preview` and look at `previews/species-<name>.png`.
+To add a species: add a case to `Species`, give it traits in `SpeciesCatalogue`, then add its head, face, ear and tail shapes in `SpeciesAnatomy`. If it isn't built like a cat or dog, give it its own `Proportions` in `PetSkeleton` (body size, leg length, head size and where the head sits); the capybara is the example. Run `make preview` and look at `previews/species-<name>.png` and `previews/poses-<name>.png`.
 
 ## The overlay
 

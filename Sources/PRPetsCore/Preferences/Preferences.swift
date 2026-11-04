@@ -35,6 +35,9 @@ public struct Preferences: Hashable, Codable, Sendable {
     public var labelStyle: PetLabelStyle = .authorLogin
     public var showHoverCards: Bool = true
     public var allowedSpecies: [Species] = Species.allCases
+    /// Every species that existed when these preferences were saved. Species added since start switched on,
+    /// while ones the user switched off stay off.
+    public var knownSpecies: [Species] = Species.allCases
     public var petsAreInside: Bool = false
     public var petLanes: Set<Lane> = PetPresencePolicy.defaultPetLanes
 
@@ -56,6 +59,9 @@ public struct Preferences: Hashable, Codable, Sendable {
     public init() {}
 
     public static let `default` = Preferences()
+
+    /// Files saved before `knownSpecies` existed knew only these.
+    private static let speciesBeforeKnownSpeciesWasSaved: [Species] = [.cat, .dog, .bunny, .fox]
 
     public static let scaleRange: ClosedRange<Double> = 1...8
     public static let pollIntervalRange: ClosedRange<Double> = 1...60
@@ -121,7 +127,9 @@ extension Preferences {
         maximumPets = value(.maximumPets, defaults.maximumPets)
         labelStyle = value(.labelStyle, defaults.labelStyle)
         showHoverCards = value(.showHoverCards, defaults.showHoverCards)
-        allowedSpecies = value(.allowedSpecies, defaults.allowedSpecies)
+        let savedSpecies = value(.allowedSpecies, defaults.allowedSpecies)
+        let knownSpecies = value(.knownSpecies, Self.speciesBeforeKnownSpeciesWasSaved)
+        allowedSpecies = Species.allCases.filter { savedSpecies.contains($0) || !knownSpecies.contains($0) }
         petsAreInside = value(.petsAreInside, defaults.petsAreInside)
         petLanes = value(.petLanes, defaults.petLanes)
         scale = Self.scaleRange.clamp(value(.scale, defaults.scale))

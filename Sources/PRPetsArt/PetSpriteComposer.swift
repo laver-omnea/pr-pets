@@ -33,7 +33,7 @@ public enum PetSpriteComposer {
     }
 
     static func paint(_ genome: PetGenome, adornment: PetAdornment, pose: PetPose) -> PaintCanvas {
-        let skeleton = PetSkeleton(build: genome.build, pose: pose)
+        let skeleton = PetSkeleton(species: genome.species, build: genome.build, pose: pose)
         var canvas = PaintCanvas(width: PetSkeleton.frameWidth, height: PetSkeleton.frameHeight)
         let species = SpeciesAnatomy(genome: genome, skeleton: skeleton)
         species.paintFarLegs(on: &canvas)

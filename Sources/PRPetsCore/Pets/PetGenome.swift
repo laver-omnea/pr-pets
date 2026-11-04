@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Species: String, CaseIterable, Hashable, Codable, Sendable {
-    case cat, dog, bunny, fox
+    case cat, dog, bunny, fox, capybara
 }
 
 public enum CoatColour: String, CaseIterable, Hashable, Codable, Sendable {
@@ -26,10 +26,14 @@ public enum CoatPattern: String, CaseIterable, Hashable, Codable, Sendable {
 
 public enum EarShape: String, CaseIterable, Hashable, Codable, Sendable {
     case pointy, tufted, floppy, folded, tall, lop
+    /// Small and rounded, set back on the head.
+    case round
 }
 
 public enum TailShape: String, CaseIterable, Hashable, Codable, Sendable {
     case long, curled, stub, bushy, puff
+    /// Too short to see.
+    case hidden
 }
 
 public enum BodyBuild: String, CaseIterable, Hashable, Codable, Sendable {

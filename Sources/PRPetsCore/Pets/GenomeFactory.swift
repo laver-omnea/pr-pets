@@ -20,7 +20,7 @@ public enum GenomeFactory {
             coatTint: Double.random(in: -1...1, using: &random),
             ears: random.weightedPick(traits.ears),
             tail: random.weightedPick(traits.tails),
-            build: random.weightedPick([(.slim, 1), (.regular, 2), (.chonky, 1)]),
+            build: random.weightedPick(traits.builds),
             eyes: random.weightedPick(traits.eyes),
             accessory: random.chance(0.2) ? random.weightedPick(Accessory.allCases.map { ($0, 1) }) : nil,
             collar: collarRandom.weightedPick(CollarColour.allCases.map { ($0, 1) }),

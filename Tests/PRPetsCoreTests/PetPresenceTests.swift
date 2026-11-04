@@ -178,6 +178,12 @@ struct GenomeTests {
         #expect(species == [.cat, .bunny])
     }
 
+    @Test func capybarasAreChunkyAndNeverHaveBrightFoxColours() {
+        let capybaras = (0..<300).map { GenomeFactory.genome(for: Seed(hashing: "capy-\($0)"), allowedSpecies: [.capybara]) }
+        #expect(capybaras.allSatisfy { $0.species == .capybara && $0.build != .slim && $0.ears == .round && $0.tail == .hidden })
+        #expect(Set(capybaras.map(\.coat)).isSubset(of: [.tan, .chocolate, .golden]))
+    }
+
     @Test func theCollarDoesNotShiftTheRestOfThePet() {
         let genome = GenomeFactory.genome(for: Seed(hashing: "collar-independence"))
         let others = CollarColour.allCases.map { genome.wearing($0) }

@@ -74,7 +74,7 @@ struct CoatPalette: Sendable {
     private static func nose(of species: Species, coat: RGBA) -> RGBA {
         switch species {
         case .cat, .bunny: RGBA(hex: 0xee8a9a)
-        case .dog, .fox: RGBA(hex: 0x2a2230)
+        case .dog, .fox, .capybara: RGBA(hex: 0x2a2230)
         }
     }
 

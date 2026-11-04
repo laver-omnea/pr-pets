@@ -21,6 +21,19 @@ struct PreferencesTests {
         #expect(preferences.roamingArea == .nearDoghouse)
     }
 
+    @Test func speciesAddedSinceTheFileWasSavedStartSwitchedOn() throws {
+        let beforeCapybaras = Data(#"{"allowedSpecies": ["cat", "fox"]}"#.utf8)
+        let preferences = try JSONDecoder().decode(Preferences.self, from: beforeCapybaras)
+        #expect(preferences.allowedSpecies == [.cat, .fox, .capybara])
+    }
+
+    @Test func speciesTheUserSwitchedOffStayOff() throws {
+        var preferences = Preferences()
+        preferences.allowedSpecies = [.dog]
+        let decoded = try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(preferences))
+        #expect(decoded.allowedSpecies == [.dog])
+    }
+
     @Test func roundTrips() throws {
         var preferences = Preferences()
         preferences.petLanes = [.needsMyReview, .needsMyAction]

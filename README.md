@@ -6,7 +6,7 @@
 
 <p align="center"><img src="docs/images/scenario-life.gif" alt="Five pets wandering, sitting and napping around a red doghouse, with name tags above them"></p>
 
-Each pull request that needs your review gets a pet: a procedurally generated cat, dog, bunny or fox with the author's name above it. When the PR is merged, approved by someone else, or no longer needs you, the pet runs back into the doghouse. PR Pets reads your PRs through your existing [GitHub CLI](https://cli.github.com) login, so there are no tokens to set up.
+Each pull request that needs your review gets a pet: a procedurally generated cat, dog, bunny, fox or capybara with the author's name above it. When the PR is merged, approved by someone else, or no longer needs you, the pet runs back into the doghouse. PR Pets reads your PRs through your existing [GitHub CLI](https://cli.github.com) login, so there are no tokens to set up.
 
 ## Install
 
@@ -108,6 +108,8 @@ Each pet has thirteen frames: stand, blink, four walking, two running, sit, sit-
 | <img src="docs/images/species-cat.png" alt="Twenty cats"> | <img src="docs/images/species-dog.png" alt="Twenty dogs"> |
 | **Bunnies** | **Foxes** |
 | <img src="docs/images/species-bunny.png" alt="Twenty bunnies"> | <img src="docs/images/species-fox.png" alt="Twenty foxes"> |
+| **Capybaras** | |
+| <img src="docs/images/species-capybara.png" alt="Twenty capybaras"> | |
 
 ## Settings
 

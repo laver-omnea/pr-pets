@@ -7,8 +7,27 @@ public struct SpeciesTraits: Sendable {
     public let secondaryCoats: [(CoatColour, Double)]
     public let patterns: [(CoatPattern, Double)]
     public let ears: [(EarShape, Double)]
+    public let builds: [(BodyBuild, Double)]
     public let tails: [(TailShape, Double)]
     public let eyes: [(EyeColour, Double)]
+
+    public init(
+        coats: [(CoatColour, Double)],
+        secondaryCoats: [(CoatColour, Double)],
+        patterns: [(CoatPattern, Double)],
+        ears: [(EarShape, Double)],
+        builds: [(BodyBuild, Double)] = [(.slim, 1), (.regular, 2), (.chonky, 1)],
+        tails: [(TailShape, Double)],
+        eyes: [(EyeColour, Double)]
+    ) {
+        self.coats = coats
+        self.secondaryCoats = secondaryCoats
+        self.patterns = patterns
+        self.ears = ears
+        self.builds = builds
+        self.tails = tails
+        self.eyes = eyes
+    }
 }
 
 public enum SpeciesCatalogue {
@@ -18,6 +37,7 @@ public enum SpeciesCatalogue {
         case .dog: dog
         case .bunny: bunny
         case .fox: fox
+        case .capybara: capybara
         }
     }
 
@@ -55,5 +75,16 @@ public enum SpeciesCatalogue {
         ears: [(.pointy, 1)],
         tails: [(.bushy, 1)],
         eyes: [(.amber, 3), (.dark, 2)]
+    )
+
+    /// Mostly a solid brown barrel with a blunt face and hardly any tail.
+    private static let capybara = SpeciesTraits(
+        coats: [(.tan, 4), (.chocolate, 3), (.golden, 2)],
+        secondaryCoats: [(.cream, 2), (.golden, 1), (.white, 1)],
+        patterns: [(.solid, 6), (.socks, 1), (.patches, 1), (.tuxedo, 0.5)],
+        ears: [(.round, 1)],
+        builds: [(.regular, 2), (.chonky, 3)],
+        tails: [(.hidden, 1)],
+        eyes: [(.dark, 1)]
     )
 }

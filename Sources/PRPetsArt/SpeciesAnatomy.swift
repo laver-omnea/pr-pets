@@ -5,13 +5,10 @@ struct SpeciesAnatomy {
     let genome: PetGenome
     let skeleton: PetSkeleton
 
-    private static let headWidth = 7
-    private static let headHeight = 6
-
     private var headX: Int { skeleton.head.x }
     private var headY: Int { skeleton.head.y }
-    private var headRight: Int { headX + Self.headWidth - 1 }
-    private var headBottom: Int { headY + Self.headHeight - 1 }
+    private var headRight: Int { headX + skeleton.headSize.width - 1 }
+    private var headBottom: Int { headY + skeleton.headSize.height - 1 }
     private var isLying: Bool { skeleton.posture == .lying }
 
     // MARK: Legs
@@ -37,6 +34,10 @@ struct SpeciesAnatomy {
 
     func paintBody(on canvas: inout PaintCanvas) {
         let body = skeleton.body
+        if genome.species == .capybara {
+            paintCapybaraBody(on: &canvas)
+            return
+        }
         switch skeleton.posture {
         case .standing, .lying:
             canvas.fillRounded(x: body.x, y: body.y, .body)
@@ -51,6 +52,36 @@ struct SpeciesAnatomy {
         canvas.recolour(x: chestColumns, y: (body.y.lowerBound + 1)...body.y.upperBound, from: .body, to: .chest)
     }
 
+    private func paintCapybaraBody(on canvas: inout PaintCanvas) {
+        let body = skeleton.body
+        let (left, right, top, bottom) = (body.x.lowerBound, body.x.upperBound, body.y.lowerBound, body.y.upperBound)
+        switch skeleton.posture {
+        case .standing, .lying:
+            // A flat back with the rump rounding off behind.
+            canvas.fill(x: (left + 2)...right, y: top...top, .body)
+            canvas.fill(x: (left + 1)...right, y: (top + 1)...(top + 1), .body)
+            canvas.fill(x: left...right, y: (top + 2)...(bottom - 1), .body)
+            canvas.fill(x: (left + 1)...(right - 1), y: bottom...bottom, .body, .coatShade)
+            if skeleton.posture == .standing {
+                // A thick neck lifts the head above the line of the back.
+                canvas.fill(x: (headX - 2)...(headX + 1), y: (headY + 2)...top, .body)
+                canvas.paint(headX - 1, headY + 1, .body)
+            }
+        case .sitting:
+            // Upright and compact: the back steps down from the head to a big round haunch on the ground,
+            // with the chest dropping straight down under the chin.
+            for row in (headY + 1)...bottom {
+                let stepping = max(left, headX - (row - headY))
+                let rounding = max(0, row - (bottom - 2))
+                canvas.fill(x: (stepping + rounding)...right, y: row...row, .body)
+            }
+            // The crease where the haunch meets the front leg.
+            let creaseX = (left + right) / 2
+            canvas.fill(x: creaseX...creaseX, y: (bottom - 4)...(bottom - 1), .body, .coatDeep)
+        }
+        canvas.recolour(x: (right - 1)...right, y: (top + 1)...bottom, from: .body, to: .chest)
+    }
+
     // MARK: Head
 
     func paintHead(on canvas: inout PaintCanvas) {
@@ -59,6 +90,9 @@ struct SpeciesAnatomy {
         case .bunny:
             canvas.fillRounded(x: (headX + 1)...headRight, y: rows, .head)
         case .cat, .dog, .fox:
+            canvas.fillRounded(x: headX...headRight, y: rows, .head)
+        case .capybara:
+            // A long, flat-topped block with a deep, square-ended snout.
             canvas.fillRounded(x: headX...headRight, y: rows, .head)
         }
         switch genome.species {
@@ -69,6 +103,9 @@ struct SpeciesAnatomy {
             canvas.fill(x: (headRight - 2)...(headRight + 1), y: (headY + 3)...(headY + 5), .muzzle)
             canvas.paint(headRight + 2, headY + 4, .muzzle)
             canvas.paint(headX + 1, headBottom + 1, .head)
+        case .capybara:
+            canvas.fill(x: (headRight - 2)...headRight, y: (headY + 2)...(headBottom - 1), .muzzle)
+            canvas.fill(x: (headRight - 2)...(headRight - 1), y: headBottom...headBottom, .muzzle)
         case .cat:
             canvas.fill(x: (headRight - 3)...(headRight - 1), y: (headY + 4)...(headY + 5), .muzzle)
         case .bunny:
@@ -77,6 +114,10 @@ struct SpeciesAnatomy {
     }
 
     func paintFace(on canvas: inout PaintCanvas) {
+        if genome.species == .capybara {
+            paintCapybaraFace(on: &canvas)
+            return
+        }
         let eyeRow = headY + 2
         let (farEyeX, nearEyeX) = eyeColumns
         for eyeX in [farEyeX, nearEyeX] {
@@ -98,13 +139,24 @@ struct SpeciesAnatomy {
             canvas.paint(headX + 5, headY + 4, .head, .blush)
         case .fox:
             canvas.paint(headRight + 2, headY + 4, .muzzle, .nose)
+        case .capybara:
+            break
         }
+    }
+
+    /// Side-on, so only one eye shows: a calm, half-closed dash set high on the head.
+    private func paintCapybaraFace(on canvas: inout PaintCanvas) {
+        let eyeX = headX + 3
+        // Closed, it's just a darker line in the fur.
+        canvas.fill(x: eyeX...(eyeX + 1), y: (headY + 1)...(headY + 1), .head, skeleton.eyesClosed ? .coatDeep : .iris)
+        canvas.paint(headRight, headY + 2, .muzzle, .nose)
     }
 
     private var eyeColumns: (far: Int, near: Int) {
         switch genome.species {
         case .cat, .fox: (headX + 2, headX + 5)
         case .bunny: (headX + 3, headX + 5)
+        case .capybara: (headX + 3, headX + 4)
         case .dog: (headX + 2, headX + 4)
         }
     }
@@ -145,6 +197,12 @@ struct SpeciesAnatomy {
             let earTop = top - 5 + droop * 2
             canvas.fill(x: anchorX...(anchorX + 1), y: earTop...(top - 1), .ear, ink)
             if !isFarSide { canvas.fill(x: (anchorX + 1)...(anchorX + 1), y: (earTop + 1)...(top - 1), .ear, .innerEar) }
+        case .round where isFarSide:
+            // Hidden behind the near ear in profile.
+            break
+        case .round:
+            // Small, dark and set right at the back of the head.
+            canvas.fill(x: (headX + 1)...(headX + 2), y: (top - 1)...(top - 1), .ear, .coatDeep)
         case .lop:
             let earX = isFarSide ? headX : headRight - 2
             canvas.fill(x: earX...(earX + 1), y: (top - 1)...(top + 4), .ear, isFarSide ? .coatShade : .coat)
@@ -176,6 +234,7 @@ struct SpeciesAnatomy {
         case .bushy:
             [(-1, 0), (-1, 1), (-2, 0), (-2, 1), (-3, 0), (-3, 1), (-4, 0), (-4, 1), (-4, 2), (-5, 1), (-5, 2), (-6, 1)]
         case .puff: [(0, 1), (-1, 1), (-1, 2), (0, 2), (-1, 0)]
+        case .hidden: []
         }
     }
 
@@ -186,6 +245,7 @@ struct SpeciesAnatomy {
         case .stub: [(-1, 0)]
         case .bushy: [(-1, 0), (-2, 0), (-2, 1), (-3, 0), (-3, 1), (-4, 1), (-5, 1), (-4, 0), (-6, 1)]
         case .puff: [(-1, 0), (-1, -1), (0, -1)]
+        case .hidden: []
         }
     }
 
@@ -193,6 +253,10 @@ struct SpeciesAnatomy {
 
     func paintNeckwear(on canvas: inout PaintCanvas, adornment: PetAdornment) {
         guard !isLying else { return }
+        if genome.species == .capybara {
+            paintCapybaraNeckwear(on: &canvas, adornment: adornment)
+            return
+        }
         let neckRow = headBottom + 1
         let neckColumns = (headX + 2)...(headRight - 1)
         if adornment.wearsStackCollar {
@@ -204,8 +268,27 @@ struct SpeciesAnatomy {
         }
     }
 
+    /// The head hides the front of the neck, so the collar runs down behind it and along under the chin.
+    private func paintCapybaraNeckwear(on canvas: inout PaintCanvas, adornment: PetAdornment) {
+        let ink: Ink
+        if adornment.wearsStackCollar {
+            ink = .collar
+        } else if genome.accessory == .bandana {
+            ink = .accessory
+        } else {
+            return
+        }
+        canvas.fill(x: (headX - 1)...(headX - 1), y: (headY + 2)...headBottom, .chest, ink)
+        canvas.fill(x: headX...(headX + 1), y: (headBottom + 1)...(headBottom + 1), .chest, ink)
+        if adornment.wearsStackCollar {
+            canvas.paint(headX + 1, headBottom + 2, .chest, .tag)
+        } else {
+            canvas.paint(headX, headBottom + 2, .chest, .accessoryShade)
+        }
+    }
+
     func paintHeadwear(on canvas: inout PaintCanvas) {
-        let bowX = headRight - 3
+        let bowX = genome.species == .capybara ? headX + 3 : headRight - 3
         switch genome.accessory {
         case .bow:
             canvas.paint(bowX - 1, headY, .head, .accessory)

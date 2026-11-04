@@ -11,6 +11,8 @@ func writeSheets() throws {
     for species in Species.allCases {
         let image = ContactSheet.render(seedCount: 20, pose: .stand, scale: 8, species: [species])
         try ImageWriter.writePNG(image, to: outputDirectory.appending(path: "species-\(species.rawValue).png"))
+        let poses = ContactSheet.renderPoses(seedCount: 6, scale: 6, species: [species])
+        try ImageWriter.writePNG(poses, to: outputDirectory.appending(path: "poses-\(species.rawValue).png"))
     }
 }
 
