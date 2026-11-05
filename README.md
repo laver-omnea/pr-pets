@@ -146,7 +146,7 @@ The pet simulation and pixel art are plain Swift with no AppKit, so they're test
 
 To cut a release, push a version tag (`git tag v0.2.0 && git push --tags`). The release workflow tests, builds a universal (Apple silicon + Intel) app, and publishes `PR-Pets.zip` with its SHA-256 checksum.
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the pieces fit together. [CONTRIBUTING.md](CONTRIBUTING.md) covers adding species, behaviours or settings.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the pieces fit together. [CONTRIBUTING.md](CONTRIBUTING.md) covers adding species, behaviours or settings, and [CONTRIBUTORS.md](CONTRIBUTORS.md) lists the people who've helped.
 
 PR Pets supports macOS and GitHub today. Its core is platform-neutral: another forge needs a new `PullRequestSource`, and another OS needs a new shell.
 

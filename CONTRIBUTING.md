@@ -34,5 +34,10 @@ Match the surrounding code:
 - Side effects only in `PRPetsGitHub` and `PRPetsApp`.
 - Names that say what they mean, even when they're long.
 - Doc comments that explain why, not what.
+- No SwiftUI macros such as `@State`, `@Observable` or `#Preview`. Their plugins ship only with Xcode, so they break `make` for anyone building with just the Command Line Tools, and CI (which has Xcode) won't notice. Use `@StateObject` with an `ObservableObject`, or keep the state in `AppModel`.
 
 Tests describe behaviour (`dismissedPullRequestsComeBackWhenTheAuthorPushes`), not methods.
+
+## Credit
+
+Add yourself to [CONTRIBUTORS.md](CONTRIBUTORS.md) in your first pull request.
