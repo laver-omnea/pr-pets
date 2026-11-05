@@ -34,10 +34,6 @@ struct SpeciesAnatomy {
 
     func paintBody(on canvas: inout PaintCanvas) {
         let body = skeleton.body
-        if genome.species == .capybara {
-            paintCapybaraBody(on: &canvas)
-            return
-        }
         switch skeleton.posture {
         case .standing, .lying:
             canvas.fillRounded(x: body.x, y: body.y, .body)
@@ -52,36 +48,6 @@ struct SpeciesAnatomy {
         canvas.recolour(x: chestColumns, y: (body.y.lowerBound + 1)...body.y.upperBound, from: .body, to: .chest)
     }
 
-    private func paintCapybaraBody(on canvas: inout PaintCanvas) {
-        let body = skeleton.body
-        let (left, right, top, bottom) = (body.x.lowerBound, body.x.upperBound, body.y.lowerBound, body.y.upperBound)
-        switch skeleton.posture {
-        case .standing, .lying:
-            // A flat back with the rump rounding off behind.
-            canvas.fill(x: (left + 2)...right, y: top...top, .body)
-            canvas.fill(x: (left + 1)...right, y: (top + 1)...(top + 1), .body)
-            canvas.fill(x: left...right, y: (top + 2)...(bottom - 1), .body)
-            canvas.fill(x: (left + 1)...(right - 1), y: bottom...bottom, .body, .coatShade)
-            if skeleton.posture == .standing {
-                // A thick neck lifts the head above the line of the back.
-                canvas.fill(x: (headX - 2)...(headX + 1), y: (headY + 2)...top, .body)
-                canvas.paint(headX - 1, headY + 1, .body)
-            }
-        case .sitting:
-            // Upright and compact: the back steps down from the head to a big round haunch on the ground,
-            // with the chest dropping straight down under the chin.
-            for row in (headY + 1)...bottom {
-                let stepping = max(left, headX - (row - headY))
-                let rounding = max(0, row - (bottom - 2))
-                canvas.fill(x: (stepping + rounding)...right, y: row...row, .body)
-            }
-            // The crease where the haunch meets the front leg.
-            let creaseX = (left + right) / 2
-            canvas.fill(x: creaseX...creaseX, y: (bottom - 4)...(bottom - 1), .body, .coatDeep)
-        }
-        canvas.recolour(x: (right - 1)...right, y: (top + 1)...bottom, from: .body, to: .chest)
-    }
-
     // MARK: Head
 
     func paintHead(on canvas: inout PaintCanvas) {
@@ -89,10 +55,7 @@ struct SpeciesAnatomy {
         switch genome.species {
         case .bunny:
             canvas.fillRounded(x: (headX + 1)...headRight, y: rows, .head)
-        case .cat, .dog, .fox:
-            canvas.fillRounded(x: headX...headRight, y: rows, .head)
-        case .capybara:
-            // A long, flat-topped block with a deep, square-ended snout.
+        case .cat, .dog, .fox, .capybara:
             canvas.fillRounded(x: headX...headRight, y: rows, .head)
         }
         switch genome.species {
@@ -114,14 +77,13 @@ struct SpeciesAnatomy {
     }
 
     func paintFace(on canvas: inout PaintCanvas) {
-        if genome.species == .capybara {
-            paintCapybaraFace(on: &canvas)
-            return
-        }
         let eyeRow = headY + 2
         let (farEyeX, nearEyeX) = eyeColumns
         for eyeX in [farEyeX, nearEyeX] {
-            if skeleton.eyesClosed {
+            if genome.species == .capybara {
+                // Side-on, so one calm, half-closed dash set high on the head. Closed, a darker line in the fur.
+                canvas.paint(eyeX, headY + 1, .head, skeleton.eyesClosed ? .coatDeep : .iris)
+            } else if skeleton.eyesClosed {
                 canvas.paint(eyeX, eyeRow + 1, .head, .eyelid)
             } else {
                 canvas.paint(eyeX, eyeRow, .head, .pupil)
@@ -140,16 +102,8 @@ struct SpeciesAnatomy {
         case .fox:
             canvas.paint(headRight + 2, headY + 4, .muzzle, .nose)
         case .capybara:
-            break
+            canvas.paint(headRight, headY + 2, .muzzle, .nose)
         }
-    }
-
-    /// Side-on, so only one eye shows: a calm, half-closed dash set high on the head.
-    private func paintCapybaraFace(on canvas: inout PaintCanvas) {
-        let eyeX = headX + 3
-        // Closed, it's just a darker line in the fur.
-        canvas.fill(x: eyeX...(eyeX + 1), y: (headY + 1)...(headY + 1), .head, skeleton.eyesClosed ? .coatDeep : .iris)
-        canvas.paint(headRight, headY + 2, .muzzle, .nose)
     }
 
     private var eyeColumns: (far: Int, near: Int) {
