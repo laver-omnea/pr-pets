@@ -29,11 +29,12 @@ struct PetSkeleton: Sendable {
     static let groundRow = 22
 
     init(species: Species, build: BodyBuild, pose: PetPose) {
-        let shape = Proportions(species: species, build: build)
-        let (bodyX, bodyTop) = (shape.bodyX, shape.bodyTop)
+        let (bodyX, bodyTop) = Self.bodyExtent(for: build)
+        let (headSize, headRise) = Self.head(for: species)
+        self.headSize = headSize
         let ground = Self.groundRow
-        let standingBodyBottom = ground - shape.legLength
-        headSize = shape.headSize
+        let legLength = 2
+        let standingBodyBottom = ground - legLength
 
         switch pose {
         case .stand, .standBlink, .walk1, .walk2, .walk3, .walk4, .run1, .run2, .startle:
@@ -42,9 +43,9 @@ struct PetSkeleton: Sendable {
             let footRow = ground - gait.airborne
             posture = .standing
             body = (bodyX, (bodyTop - gait.lift)...bodyBottom)
-            head = (bodyX.upperBound + shape.headOffset.x, bodyTop + shape.headOffset.y - gait.lift)
-            let backX = bodyX.lowerBound + shape.legInset.back
-            let frontX = bodyX.upperBound - shape.legInset.front
+            head = (bodyX.upperBound - 2, bodyTop - headRise - gait.lift)
+            let backX = bodyX.lowerBound + 1
+            let frontX = bodyX.upperBound - 1
             legs = [
                 Leg(x: backX + 1 + gait.farBack, top: bodyBottom + 1, bottom: footRow, isFarSide: true),
                 Leg(x: frontX + 1 + gait.farFront, top: bodyBottom + 1, bottom: footRow, isFarSide: true),
@@ -57,8 +58,8 @@ struct PetSkeleton: Sendable {
         case .sit, .sitBlink:
             posture = .sitting
             let sitTop = bodyTop - 1
-            body = ((bodyX.lowerBound + shape.sittingInset)...bodyX.upperBound, sitTop...ground)
-            head = (bodyX.upperBound + shape.headOffset.x - 1, sitTop + shape.headOffset.y)
+            body = ((bodyX.lowerBound + 2)...bodyX.upperBound, sitTop...ground)
+            head = (bodyX.upperBound - 3, sitTop - headRise)
             legs = [
                 Leg(x: bodyX.upperBound, top: ground - 2, bottom: ground, isFarSide: true),
                 Leg(x: bodyX.upperBound - 1, top: ground - 2, bottom: ground, isFarSide: false),
@@ -69,9 +70,9 @@ struct PetSkeleton: Sendable {
         case .sleep1, .sleep2:
             posture = .lying
             let breath = pose == .sleep2 ? 1 : 0
-            let lyingTop = ground - shape.lyingDepth - breath
+            let lyingTop = ground - 3 - (bodyTop < 16 ? 1 : 0) - breath
             body = ((bodyX.lowerBound - 1)...(bodyX.upperBound), lyingTop...ground)
-            head = (bodyX.upperBound - 1, ground - shape.headSize.height + 1 - shape.lyingHeadLift)
+            head = (bodyX.upperBound - 1, ground - headSize.height + 1)
             legs = [Leg(x: bodyX.upperBound + 4, top: ground, bottom: ground, isFarSide: false)]
             tailRoot = (bodyX.lowerBound - 1, ground - 1)
             tailSway = 0
@@ -79,42 +80,20 @@ struct PetSkeleton: Sendable {
         }
     }
 
-    /// How a species is put together, standing.
-    private struct Proportions {
-        var bodyX: ClosedRange<Int>
-        var bodyTop: Int
-        var legLength = 2
-        /// How far in from the back and front of the body the legs stand.
-        var legInset = (back: 1, front: 1)
-        /// How much narrower the body gets when sitting, taken off the back.
-        var sittingInset = 2
-        var headSize = (width: 7, height: 6)
-        /// The head's top-left corner, relative to the front of the body and the top of the back.
-        var headOffset = (x: -2, y: -6)
-        /// Rows from the ground to the top of the back when lying down.
-        var lyingDepth: Int
-        /// How far the head rests above the ground when lying down.
-        var lyingHeadLift = 0
+    /// How big a species' head is, and how many rows its top sits above the back.
+    private static func head(for species: Species) -> (size: (width: Int, height: Int), rise: Int) {
+        switch species {
+        // Held forward at shoulder height, rather than perched on top of the body.
+        case .capybara: ((width: 7, height: 5), 2)
+        case .cat, .dog, .bunny, .fox: ((width: 7, height: 6), 6)
+        }
+    }
 
-        init(species: Species, build: BodyBuild) {
-            switch (species, build) {
-            case (.capybara, .chonky): (bodyX, bodyTop) = (7...19, 13)
-            case (.capybara, _): (bodyX, bodyTop) = (8...19, 14)
-            case (_, .slim): (bodyX, bodyTop) = (10...18, 17)
-            case (_, .regular): (bodyX, bodyTop) = (10...18, 16)
-            case (_, .chonky): (bodyX, bodyTop) = (9...19, 15)
-            }
-            lyingDepth = bodyTop < 16 ? 4 : 3
-            if species == .capybara {
-                // A long, flat-backed barrel on longish legs, with a big blocky head held up above the shoulders.
-                legLength = 3
-                legInset = (back: 1, front: 2)
-                sittingInset = 4
-                headSize = (width: 7, height: 5)
-                headOffset = (x: -2, y: -2)
-                lyingDepth = 4
-                lyingHeadLift = 1
-            }
+    private static func bodyExtent(for build: BodyBuild) -> (x: ClosedRange<Int>, top: Int) {
+        switch build {
+        case .slim: (10...18, 17)
+        case .regular: (10...18, 16)
+        case .chonky: (9...19, 15)
         }
     }
 

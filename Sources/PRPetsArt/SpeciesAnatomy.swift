@@ -268,22 +268,16 @@ struct SpeciesAnatomy {
         }
     }
 
-    /// The head hides the front of the neck, so the collar runs down behind it and along under the chin.
+    /// The head hides the front of the neck. A collar runs down behind the head and along under the chin;
+    /// a bandana is just a small triangle hanging under the chin, so the two never look alike.
     private func paintCapybaraNeckwear(on canvas: inout PaintCanvas, adornment: PetAdornment) {
-        let ink: Ink
         if adornment.wearsStackCollar {
-            ink = .collar
-        } else if genome.accessory == .bandana {
-            ink = .accessory
-        } else {
-            return
-        }
-        canvas.fill(x: (headX - 1)...(headX - 1), y: (headY + 2)...headBottom, .chest, ink)
-        canvas.fill(x: headX...(headX + 1), y: (headBottom + 1)...(headBottom + 1), .chest, ink)
-        if adornment.wearsStackCollar {
+            canvas.fill(x: (headX - 1)...(headX - 1), y: (headY + 2)...headBottom, .chest, .collar)
+            canvas.fill(x: headX...(headX + 1), y: (headBottom + 1)...(headBottom + 1), .chest, .collar)
             canvas.paint(headX + 1, headBottom + 2, .chest, .tag)
-        } else {
-            canvas.paint(headX, headBottom + 2, .chest, .accessoryShade)
+        } else if genome.accessory == .bandana {
+            canvas.fill(x: headX...(headX + 2), y: (headBottom + 1)...(headBottom + 1), .chest, .accessory)
+            canvas.paint(headX + 1, headBottom + 2, .chest, .accessoryShade)
         }
     }
 
