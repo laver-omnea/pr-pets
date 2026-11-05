@@ -6,8 +6,8 @@ private let laptop = CGRect(x: 0, y: 0, width: 1440, height: 900)
 private let externalOnTheRight = CGRect(x: 1440, y: -200, width: 2560, height: 1440)
 private let ownProcess: Int32 = 42
 
-private func window(_ bounds: CGRect, layer: Int = 0, owner: Int32 = 7) -> WindowSnapshot {
-    WindowSnapshot(ownerProcessID: owner, layer: layer, bounds: bounds)
+private func window(_ bounds: CGRect, layer: Int = 0, owner: Int32 = 7, kind: WindowOwner = .app) -> WindowSnapshot {
+    WindowSnapshot(ownerProcessID: owner, owner: kind, layer: layer, bounds: bounds)
 }
 
 @Suite("Full screen detection")
@@ -23,6 +23,17 @@ struct FullScreenDetectionTests {
         let menuBarLayer = window(laptop, layer: 24)
         let ownOverlay = window(laptop, layer: 3, owner: ownProcess)
         #expect(!FullScreenDetection.isFullScreen(display: laptop, windows: [menuBarLayer, ownOverlay], ignoringProcess: ownProcess))
+    }
+
+    @Test func theDockSlidingOutDoesntCount() {
+        // The Dock keeps a window the size of the display at layer 20, on screen whenever it's showing.
+        let dock = window(laptop, layer: 20, owner: 99, kind: .background)
+        #expect(!FullScreenDetection.isFullScreen(display: laptop, windows: [dock], ignoringProcess: ownProcess))
+    }
+
+    @Test func notificationsAndMissionControlDontCount() {
+        let systemOverlay = window(laptop, layer: 0, owner: 98, kind: .background)
+        #expect(!FullScreenDetection.isFullScreen(display: laptop, windows: [systemOverlay], ignoringProcess: ownProcess))
     }
 
     @Test func slideshowsAboveNormalWindowsCount() {
