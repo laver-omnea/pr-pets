@@ -87,6 +87,28 @@ struct GhCliPullRequestSourceTests {
         #expect(arguments.contains("authoredSearch=is:pr is:open archived:false author:@me user:acme -repo:acme/legacy"))
     }
 
+    @Test func excludesEveryIgnoredRepositoryFromBothSearches() async throws {
+        let gh = try RecordedGh.succeeding(["ViewerQueue": "viewer-queue"])
+        let source = GhCliPullRequestSource(configuration: anyExecutable, runner: gh)
+
+        _ = try await source.fetchSnapshot(PullRequestQuery(excludedRepositories: ["acme/legacy", "acme/sandbox"], includeStackContext: false))
+
+        let arguments = try #require(gh.recordedArguments.all.first)
+        #expect(arguments.contains("reviewSearch=is:pr is:open archived:false review-requested:@me -repo:acme/legacy -repo:acme/sandbox"))
+        #expect(arguments.contains("authoredSearch=is:pr is:open archived:false author:@me -repo:acme/legacy -repo:acme/sandbox"))
+    }
+
+    @Test func addsNoRepositoryQualifiersWhenNothingIsIgnored() async throws {
+        let gh = try RecordedGh.succeeding(["ViewerQueue": "viewer-queue"])
+        let source = GhCliPullRequestSource(configuration: anyExecutable, runner: gh)
+
+        _ = try await source.fetchSnapshot(PullRequestQuery(includeStackContext: false))
+
+        let arguments = try #require(gh.recordedArguments.all.first)
+        #expect(arguments.contains("reviewSearch=is:pr is:open archived:false review-requested:@me"))
+        #expect(!arguments.contains { $0.contains("-repo:") })
+    }
+
     @Test func reportsMissingLoginClearly() async throws {
         let gh = RecordedGh(responses: ["ViewerQueue": CommandOutput(
             exitCode: 4, standardOutput: Data(), standardError: "To get started with GitHub CLI, please run:  gh auth login"

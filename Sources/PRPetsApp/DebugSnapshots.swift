@@ -32,13 +32,15 @@ enum DebugSnapshots {
                 try write(narrowDashboard, to: directory.appending(path: "dashboard-narrow.png"))
                 let tabs: [(String, AnyView)] = [
                     ("github", AnyView(GitHubSettings(model: model))),
+                    ("filters", AnyView(FilterSettings(model: model))),
                     ("pets", AnyView(PetSettings(model: model))),
                     ("placement", AnyView(PlacementSettings(model: model))),
                     ("system", AnyView(SystemSettings(model: model, updates: updates))),
                 ]
                 for (name, tab) in tabs {
-                    let view = NSHostingView(rootView: Form { tab }.formStyle(.grouped).frame(width: 520, height: 460))
-                    view.frame = CGRect(x: 0, y: 0, width: 520, height: 460)
+                    let size = SettingsView.size
+                    let view = NSHostingView(rootView: Form { tab }.formStyle(.grouped).frame(width: size.width, height: size.height))
+                    view.frame = CGRect(origin: .zero, size: size)
                     try write(view, to: directory.appending(path: "settings-\(name).png"))
                 }
                 print("Wrote debug snapshots to \(directory.path)")

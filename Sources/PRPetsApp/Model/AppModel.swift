@@ -48,6 +48,7 @@ final class AppModel: ObservableObject {
     /// Set by `PR_PETS_DATA_SOURCE=demo` (used by `make demo`); never written to the preferences file.
     private let dataSourceOverride: DataSourceKind?
     private var pollingTask: Task<Void, Never>?
+    private var refreshRequestedWhileFetching = false
     private var source: (any PullRequestSource)?
     private var sourceConfiguration: SourceConfiguration?
 
@@ -65,8 +66,13 @@ final class AppModel: ObservableObject {
         return effective
     }
 
+    /// The latest snapshot without anything the current filters leave out, so a narrower filter shows at once.
+    var visibleSnapshot: PullRequestSnapshot? {
+        snapshot?.narrowed(to: effectivePreferences.pullRequestQuery)
+    }
+
     var board: ReviewBoard? {
-        snapshot.map { ReviewBoard(snapshot: $0, ledger: ledger, identities: identities, preferences: effectivePreferences) }
+        visibleSnapshot.map { ReviewBoard(snapshot: $0, ledger: ledger, identities: identities, preferences: effectivePreferences) }
     }
 
     // MARK: - Commands
@@ -83,19 +89,16 @@ final class AppModel: ObservableObject {
     }
 
     func refresh() async {
-        guard !syncStatus.isRefreshing else { return }
-        let preferences = effectivePreferences
-        syncStatus = .refreshing(lastSuccess: syncStatus.lastSuccess)
-        do {
-            let fetched = try await currentSource(for: preferences).fetchSnapshot(preferences.pullRequestQuery)
-            apply(fetched)
-            syncStatus = .synced(at: fetched.fetchedAt)
-            Log.sync.info("Fetched \(fetched.pullRequests.count) PRs, \(fetched.reviewRequestedOfViewer.count) awaiting review")
-        } catch {
-            let message = String(describing: error)
-            syncStatus = .failed(message: message, at: Date(), lastSuccess: syncStatus.lastSuccess)
-            Log.sync.error("Refresh failed: \(message, privacy: .public)")
+        guard !syncStatus.isRefreshing else {
+            // Typically a setting changed mid-fetch. Fetch again as soon as this one lands, rather than
+            // leaving the new setting unapplied until the next poll.
+            refreshRequestedWhileFetching = true
+            return
         }
+        repeat {
+            refreshRequestedWhileFetching = false
+            await fetchAndApply()
+        } while refreshRequestedWhileFetching
     }
 
     func updatePreferences(_ change: (inout Preferences) -> Void) {
@@ -139,6 +142,33 @@ final class AppModel: ObservableObject {
         effectivePreferences.dataSource == .demo ? .seconds(4) : effectivePreferences.pollInterval
     }
 
+    private func fetchAndApply() async {
+        let preferences = effectivePreferences
+        syncStatus = .refreshing(lastSuccess: syncStatus.lastSuccess)
+        let outcome: Result<PullRequestSnapshot, any Error>
+        do {
+            outcome = .success(try await currentSource(for: preferences).fetchSnapshot(preferences.pullRequestQuery))
+        } catch {
+            outcome = .failure(error)
+        }
+        // The settings changed while waiting, so this answers an old question. Applying it could prune mutes
+        // against another source's PRs, or show an error for a `gh` path that's since been fixed. Ask again instead.
+        guard !Self.fetchesDifferently(preferences, effectivePreferences) else {
+            refreshRequestedWhileFetching = true
+            return
+        }
+        switch outcome {
+        case .success(let fetched):
+            apply(fetched)
+            syncStatus = .synced(at: fetched.fetchedAt)
+            Log.sync.info("Fetched \(fetched.pullRequests.count) PRs, \(fetched.reviewRequestedOfViewer.count) awaiting review")
+        case .failure(let error):
+            let message = String(describing: error)
+            syncStatus = .failed(message: message, at: Date(), lastSuccess: syncStatus.lastSuccess)
+            Log.sync.error("Refresh failed: \(message, privacy: .public)")
+        }
+    }
+
     private func apply(_ fetched: PullRequestSnapshot) {
         snapshot = fetched
         identities = ReviewBoard.identities(identities, updatedFor: fetched)
@@ -155,9 +185,7 @@ final class AppModel: ObservableObject {
     private func reactToSettingsChange(from previous: Preferences) {
         let current = effectivePreferences
         if current.launchAtLogin != previous.launchAtLogin { applyLaunchAtLogin(current.launchAtLogin) }
-        let fetchChanged = SourceConfiguration(current) != SourceConfiguration(previous)
-            || current.pullRequestQuery != previous.pullRequestQuery
-            || current.pollIntervalMinutes != previous.pollIntervalMinutes
+        let fetchChanged = Self.fetchesDifferently(current, previous) || current.pollIntervalMinutes != previous.pollIntervalMinutes
         if fetchChanged {
             if current.dataSource != previous.dataSource { snapshot = nil }
             startPolling()
@@ -170,6 +198,11 @@ final class AppModel: ObservableObject {
         } catch {
             Log.storage.error("Couldn't change launch at login: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// Whether fetching with one set of preferences could give a different answer from fetching with the other.
+    private static func fetchesDifferently(_ lhs: Preferences, _ rhs: Preferences) -> Bool {
+        SourceConfiguration(lhs) != SourceConfiguration(rhs) || lhs.pullRequestQuery != rhs.pullRequestQuery
     }
 
     private struct SourceConfiguration: Equatable {

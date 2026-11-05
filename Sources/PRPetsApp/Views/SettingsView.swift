@@ -10,6 +10,8 @@ struct SettingsView: View {
         TabView {
             Form { GitHubSettings(model: model) }
                 .tabItem { Label("GitHub", systemImage: "arrow.triangle.pull") }
+            Form { FilterSettings(model: model) }
+                .tabItem { Label("Filters", systemImage: "line.3.horizontal.decrease.circle") }
             Form { PetSettings(model: model) }
                 .tabItem { Label("Pets", systemImage: "pawprint") }
             Form { PlacementSettings(model: model) }
@@ -18,26 +20,17 @@ struct SettingsView: View {
                 .tabItem { Label("System", systemImage: "gearshape") }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 460)
+        .frame(width: Self.size.width, height: Self.size.height)
     }
+
+    /// Wide enough that every tab still fits in the title bar, where macOS 26 puts them.
+    static let size = CGSize(width: 600, height: 460)
 }
 
 /// A two-way binding to one setting that saves on every change.
 @MainActor
 private func setting<Value>(_ model: AppModel, _ keyPath: WritableKeyPath<Preferences, Value>) -> Binding<Value> {
     Binding(get: { model.preferences[keyPath: keyPath] }, set: { value in model.updatePreferences { $0[keyPath: keyPath] = value } })
-}
-
-/// Edits a list setting as comma-separated text.
-@MainActor
-private func listSetting(_ model: AppModel, _ keyPath: WritableKeyPath<Preferences, [String]>) -> Binding<String> {
-    Binding(
-        get: { model.preferences[keyPath: keyPath].joined(separator: ", ") },
-        set: { text in
-            let items = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            model.updatePreferences { $0[keyPath: keyPath] = items }
-        }
-    )
 }
 
 struct GitHubSettings: View {
@@ -61,9 +54,186 @@ struct GitHubSettings: View {
         Section("What counts") {
             Toggle("Include review requests sent to my teams", isOn: setting(model, \.includeTeamReviewRequests))
             Toggle("Fetch whole stacks for context", isOn: setting(model, \.showStackContext))
-            TextField("Only these orgs/users", text: listSetting(model, \.onlyOwners), prompt: Text("Everywhere"))
-            TextField("Ignore repositories", text: listSetting(model, \.excludedRepositories), prompt: Text("owner/repo, …"))
         }
+    }
+}
+
+/// Which repositories pull requests are fetched from. A tab of its own so the lists have room to grow.
+struct FilterSettings: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        Section {
+            FilterListEditor(kind: .owners, entries: setting(model, \.onlyOwners), openPullRequests: model.visibleSnapshot)
+        } header: {
+            Text("Only these orgs and users")
+        } footer: {
+            Text("Leave empty to see pull requests from everywhere.").font(.caption).foregroundStyle(.secondary)
+        }
+        Section {
+            FilterListEditor(kind: .repositories, entries: setting(model, \.excludedRepositories), openPullRequests: model.visibleSnapshot)
+        } header: {
+            Text("Ignored repositories")
+        } footer: {
+            Text("Pull requests here get no pet and no dashboard row. Paste several at once, or links to anything on GitHub.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Edits a filter list one entry per row. The field takes one entry or a pasted list, and the setting is saved
+/// only when entries are added or removed, so typing never kicks off a fetch with half a name in it.
+private struct FilterListEditor: View {
+    let kind: FilterListKind
+    @Binding var entries: [String]
+    /// The latest fetch, so entries can be picked rather than typed.
+    let openPullRequests: PullRequestSnapshot?
+
+    @State private var draft = ""
+    @State private var problem: String?
+
+    var body: some View {
+        // By position: the old comma-separated field could save the same entry twice.
+        ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+            FilterListRow(entry: entry, kind: kind) { remove(at: index) }
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                TextField(kind.fieldTitle, text: $draft, prompt: Text(kind.prompt), axis: .vertical)
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...5)
+                    .onSubmit(addDraft)
+                    .onChange(of: draft) { _, text in if text.isEmpty { problem = nil } }
+                if !suggestions.isEmpty {
+                    Menu {
+                        Section(kind.suggestionsTitle) {
+                            ForEach(suggestions.prefix(15), id: \.entry) { suggestion in
+                                Button("\(suggestion.entry)  ·  \(suggestion.pullRequestCount) open") { add(suggestion) }
+                            }
+                        }
+                    } label: {
+                        Text("Suggestions")
+                    }
+                    .fixedSize()
+                    .help(kind.suggestionsTitle)
+                }
+                Button("Add", action: addDraft)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            if let problem {
+                Label(problem, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    private var suggestions: [FilterSuggestion] {
+        openPullRequests.map { kind.suggestions(from: $0, excluding: entries) } ?? []
+    }
+
+    private func addDraft() {
+        let addition = kind.adding(draft, to: entries)
+        if addition.entries != entries { entries = addition.entries }
+        // Leave whatever couldn't be read in the field, so it can be fixed rather than retyped.
+        draft = addition.unreadable.joined(separator: " ")
+        problem = kind.problem(with: addition)
+    }
+
+    /// Leaves the field alone: whatever's half-typed there is still wanted.
+    private func add(_ suggestion: FilterSuggestion) {
+        entries = kind.adding(suggestion.entry, to: entries).entries
+    }
+
+    private func remove(at index: Int) {
+        entries.remove(at: index)
+        problem = nil
+    }
+}
+
+private struct FilterListRow: View {
+    let entry: String
+    let kind: FilterListKind
+    let remove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label(entry, systemImage: kind.symbol)
+            if kind.normalised(entry) == nil {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help(kind.unusableEntryHelp)
+            }
+            Spacer()
+            Button(action: remove) {
+                Image(systemName: "minus.circle.fill")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Remove \(entry)")
+            .accessibilityLabel("Remove \(entry)")
+        }
+    }
+}
+
+/// Wording for each filter list. What counts as a valid entry is decided in `FilterListKind` itself.
+private extension FilterListKind {
+    var fieldTitle: String {
+        switch self {
+        case .owners: "Add an org or user"
+        case .repositories: "Add a repository to ignore"
+        }
+    }
+
+    var prompt: String {
+        switch self {
+        case .owners: "acme, @someone, or a link"
+        case .repositories: "owner/name, or a link to a repo or PR"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .owners: "person.2"
+        case .repositories: "book.closed"
+        }
+    }
+
+    var suggestionsTitle: String {
+        switch self {
+        case .owners: "Orgs and users with open pull requests"
+        case .repositories: "Repositories with open pull requests"
+        }
+    }
+
+    var unusableEntryHelp: String {
+        switch self {
+        case .owners: "Not an org or user name, so it's left out of the search. Remove it and add one like acme."
+        case .repositories: "Not in owner/name form, so it's left out of the search. Remove it and add one like acme/api."
+        }
+    }
+
+    func problem(with addition: FilterListAddition) -> String? {
+        var sentences: [String] = []
+        if !addition.unreadable.isEmpty {
+            let quoted = addition.unreadable.map { "“\($0)”" }.formatted(.list(type: .and))
+            let sentence = switch self {
+            case .owners: "Couldn't read \(quoted) as an org or user, like acme. To leave out a single repository, use Ignored repositories."
+            case .repositories: "Couldn't read \(quoted) as owner/name, like acme/api."
+            }
+            sentences.append(sentence)
+        }
+        if !addition.alreadyListed.isEmpty {
+            let names = addition.alreadyListed.formatted(.list(type: .and))
+            let verb = addition.alreadyListed.count == 1 ? "is" : "are"
+            let sentence = switch self {
+            case .owners: "\(names) \(verb) already in the list."
+            case .repositories: "\(names) \(verb) already ignored."
+            }
+            sentences.append(sentence)
+        }
+        return sentences.isEmpty ? nil : sentences.joined(separator: " ")
     }
 }
 
