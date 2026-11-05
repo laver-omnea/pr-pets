@@ -44,13 +44,21 @@ final class FullScreenMonitor {
     /// Window bounds and layers are readable without Screen Recording permission; titles aren't needed.
     private static func onScreenWindows() -> [WindowSnapshot] {
         let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        var ownerByProcessID: [Int32: WindowOwner] = [:]
+        func owner(of pid: Int32) -> WindowOwner {
+            if let known = ownerByProcessID[pid] { return known }
+            let isOrdinaryApp = NSRunningApplication(processIdentifier: pid)?.activationPolicy == .regular
+            let owner: WindowOwner = isOrdinaryApp ? .app : .background
+            ownerByProcessID[pid] = owner
+            return owner
+        }
         return info.compactMap { window in
             guard let pid = window[kCGWindowOwnerPID as String] as? Int32,
                   let layer = window[kCGWindowLayer as String] as? Int,
                   let boundsDictionary = window[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: boundsDictionary)
             else { return nil }
-            return WindowSnapshot(ownerProcessID: pid, layer: layer, bounds: bounds)
+            return WindowSnapshot(ownerProcessID: pid, owner: owner(of: pid), layer: layer, bounds: bounds)
         }
     }
 }
