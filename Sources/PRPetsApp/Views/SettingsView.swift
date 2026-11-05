@@ -89,8 +89,9 @@ private struct FilterListEditor: View {
     /// The latest fetch, so entries can be picked rather than typed.
     let openPullRequests: PullRequestSnapshot?
 
-    @State private var draft = ""
-    @State private var problem: String?
+    // @StateObject rather than @State: @State is a macro whose plugin ships only with Xcode, so it breaks
+    // building from source with just the Command Line Tools.
+    @StateObject private var field = FilterListField()
 
     var body: some View {
         // By position: the old comma-separated field could save the same entry twice.
@@ -99,12 +100,12 @@ private struct FilterListEditor: View {
         }
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                TextField(kind.fieldTitle, text: $draft, prompt: Text(kind.prompt), axis: .vertical)
+                TextField(kind.fieldTitle, text: $field.draft, prompt: Text(kind.prompt), axis: .vertical)
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...5)
                     .onSubmit(addDraft)
-                    .onChange(of: draft) { _, text in if text.isEmpty { problem = nil } }
+                    .onChange(of: field.draft) { _, text in if text.isEmpty { field.problem = nil } }
                 if !suggestions.isEmpty {
                     Menu {
                         Section(kind.suggestionsTitle) {
@@ -119,9 +120,9 @@ private struct FilterListEditor: View {
                     .help(kind.suggestionsTitle)
                 }
                 Button("Add", action: addDraft)
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(field.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            if let problem {
+            if let problem = field.problem {
                 Label(problem, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
@@ -134,11 +135,11 @@ private struct FilterListEditor: View {
     }
 
     private func addDraft() {
-        let addition = kind.adding(draft, to: entries)
+        let addition = kind.adding(field.draft, to: entries)
         if addition.entries != entries { entries = addition.entries }
         // Leave whatever couldn't be read in the field, so it can be fixed rather than retyped.
-        draft = addition.unreadable.joined(separator: " ")
-        problem = kind.problem(with: addition)
+        field.draft = addition.unreadable.joined(separator: " ")
+        field.problem = kind.problem(with: addition)
     }
 
     /// Leaves the field alone: whatever's half-typed there is still wanted.
@@ -148,8 +149,14 @@ private struct FilterListEditor: View {
 
     private func remove(at index: Int) {
         entries.remove(at: index)
-        problem = nil
+        field.problem = nil
     }
+}
+
+/// What's typed into a filter list's field, and what went wrong adding it.
+private final class FilterListField: ObservableObject {
+    @Published var draft = ""
+    @Published var problem: String?
 }
 
 private struct FilterListRow: View {
